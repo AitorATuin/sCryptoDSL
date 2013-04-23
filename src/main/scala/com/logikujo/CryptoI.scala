@@ -12,6 +12,11 @@ trait CipherDecrypt[CipherSpec] {
   def decrypt(msg: Hex, key: Hex): Hex
 }
 
+trait MacSpec
+trait Mac[MacSpec] {
+  def mac(msg: Hex, key: Hex): Hex
+}
+
 trait Base64 {
   val contents: Array[Byte]
   def apply(): Array[Byte] = contents
@@ -49,6 +54,7 @@ abstract class PlainMsg[T: AsHex] extends Msg[T] {
 
   def encrypt[C](key: Msg[_])(implicit c: CipherEncrypt[C]): CipherMsg[T] =
     CipherMsg(c.encrypt(payload, key.payload))
+  def mac[M](key: Msg[_])(implicit m: Mac[M]): CipherMsg[T] = CipherMsg(m.mac(payload, key.payload))
 }
 
 abstract class CipherMsg[T: AsHex] extends Msg[T] {

@@ -34,7 +34,7 @@ package Cipher {
                 new IvParameterSpec(IV))
             }
             case C.DECRYPT_MODE => {
-            val IV = c.getIV()
+              val IV = c.getIV()
               c.init(mode,
                 new SecretKeySpec(key.value, "AES"),
                 new IvParameterSpec(IV))
