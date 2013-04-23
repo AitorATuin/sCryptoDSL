@@ -1,4 +1,4 @@
-package com.logikujo.CryptoI
+package com.logikujo.CryptoI.Mac
 
 /**
  * ${PROJECT_NAME} / 2013 / Logikujo.com [Fun Dev]
@@ -6,13 +6,12 @@ package com.logikujo.CryptoI
  * ${PACKAGE_NAME} / atuin / 23/04/13 / 00:55
  *
  */
-package MAC {
 
-  import javax.crypto.{Mac => M}
-  import com.logikujo.CryptoI.Mac
-  import javax.crypto.spec.SecretKeySpec
+import com.logikujo.CryptoI._
+import javax.crypto.{Mac => M}
+import javax.crypto.spec.SecretKeySpec
 
-package object JavaxHmacSHA256 {
+object JavaxHmacSHA256 {
     sealed trait JavaxHmacSHA256 extends MacSpec
 
     implicit object HmacSHA256 extends Mac[JavaxHmacSHA256]
@@ -24,4 +23,3 @@ package object JavaxHmacSHA256 {
       }
     }
   }
-}
