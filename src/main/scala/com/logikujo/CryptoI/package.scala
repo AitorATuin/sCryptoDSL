@@ -12,6 +12,7 @@ import org.apache.commons.codec.binary.{Base64 => B64}
 package object CryptoI {
   import Cipher._
   import Mac._
+  import MessageDigest._
 
   trait Base64 {
     val contents: Array[Byte]
@@ -31,6 +32,8 @@ package object CryptoI {
     lazy val length: Int = value.length
 
     override def toString = value.map("%02x" format (_)).mkString
+
+    def | (other: Hex): Hex = Hex(value ++ other.value)
 
     def xor(other: Hex): Hex = Hex((value zip other.value) map {
       case (a, b) => (a ^ b).toByte
@@ -59,6 +62,8 @@ package object CryptoI {
       CipherMsg(c.encrypt(payload, key.payload))
 
     def mac[M](key: Msg[_])(implicit m: Mac[M]): CipherMsg[T] = CipherMsg(m.mac(payload, key.payload))
+
+    def digest[D](implicit d: MessageDigest[D]): CipherMsg[T] = CipherMsg(d.digest(payload))
   }
 
   abstract class CipherMsg[T: AsHex] extends Msg[T] {
