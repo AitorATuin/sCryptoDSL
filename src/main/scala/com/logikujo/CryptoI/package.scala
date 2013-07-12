@@ -38,9 +38,31 @@ package object CryptoI {
     def xor(other: Hex): Hex = Hex((value zip other.value) map {
       case (a, b) => (a ^ b).toByte
     })
+
+    def take(n: Int): Hex = Hex(value.take(n))
+    def drop(n: Int): Hex = Hex(value.drop(n))
+    def setByte(byte: Int, f: Byte => Byte): Hex = value.lift(byte) match {
+      case Some(b) =>
+        Hex(value.take(byte) ++ Array(f(b)) ++ value.drop(byte+1))
+      case None => Hex(value)
+    }
+    def setByte(byte: Int, b: Byte):Hex = setByte(byte, (_:Byte) => b)
+
+    def grouped(n: Int): Iterator[Hex] = value.grouped(n).map(Hex(_))
+
+    def apply(n: Int) = value.lift(n)
   }
 
-  trait AsHex[T] {
+  object Hex {
+    def parseHexString(s: String): Hex =
+        Hex(s grouped (2) map {
+          Integer.parseInt(_, 16).toByte
+        } toArray)
+
+    def apply(n:Int)(v:Byte): Hex = Hex(Array.fill(n)(v))
+  }
+
+  trait ToHex[T] {
     def encode(v: T): Hex
 
     def decode(h: Hex): T
@@ -54,8 +76,8 @@ package object CryptoI {
     override def toString: String = payload.toString
   }
 
-  /* Need to be abstact class in order to use context bound AsHex[T] */
-  abstract class PlainMsg[T: AsHex] extends Msg[T] {
+  /* Need to be abstact class in order to use context bound ToHex[T] */
+  abstract class PlainMsg[T: ToHex] extends Msg[T] {
     val value: T
 
     def encrypt[C](key: Msg[_])(implicit c: CipherEncrypt[C]): CipherMsg[T] =
@@ -66,18 +88,18 @@ package object CryptoI {
     def digest[D](implicit d: MessageDigest[D]): CipherMsg[T] = CipherMsg(d.digest(payload))
   }
 
-  abstract class CipherMsg[T: AsHex] extends Msg[T] {
+  abstract class CipherMsg[T: ToHex] extends Msg[T] {
     def decrypt[C](key: Msg[_])(implicit c: CipherDecrypt[C]): PlainMsg[T] =
       PlainMsg(c.decrypt(payload, key.payload))
   }
 
   object PlainMsg {
-    def apply[A](v: A)(implicit h: AsHex[A]): PlainMsg[A] = new PlainMsg[A] {
+    def apply[A](v: A)(implicit h: ToHex[A]): PlainMsg[A] = new PlainMsg[A] {
       val value: A = v
       val payload = h encode v
     }
 
-    def apply[A](ha: Hex)(implicit h: AsHex[A]): PlainMsg[A] =
+    def apply[A](ha: Hex)(implicit h: ToHex[A]): PlainMsg[A] =
       new PlainMsg[A] {
         val value: A = h decode ha
         val payload = ha
@@ -85,12 +107,12 @@ package object CryptoI {
   }
 
   object CipherMsg {
-    def apply[A](v: Array[Byte])(implicit h: AsHex[A]): CipherMsg[A] =
+    def apply[A](v: Array[Byte])(implicit h: ToHex[A]): CipherMsg[A] =
       new CipherMsg[A] {
         val payload: Hex = Hex(v)
       }
 
-    def apply[A](ha: Hex)(implicit h: AsHex[A]): CipherMsg[A] =
+    def apply[A](ha: Hex)(implicit h: ToHex[A]): CipherMsg[A] =
       new CipherMsg[A] {
         val payload: Hex = ha
       }
@@ -101,18 +123,17 @@ package object CryptoI {
     sealed trait StringAsMsg {
       val value: String
 
-      private def fromHex(s: String): Hex =
+     /* private def fromHex(s: String): Hex =
         Hex(s grouped (2) map {
           Integer.parseInt(_, 16).toByte
-        } toArray)
+        } toArray)*/
 
-      def asciiPlain(implicit h: AsHex[String]): PlainMsg[String] = PlainMsg(value)
+      def asciiPlain(implicit h: ToHex[String]): PlainMsg[String] = PlainMsg(value)
 
-      def hexPlain(implicit h: AsHex[String]): PlainMsg[String] =
-        PlainMsg(fromHex(value))
+      def hexPlain(implicit h: ToHex[String]): PlainMsg[String] =
+        PlainMsg(Hex.parseHexString(value))
 
-      def hex(implicit h: AsHex[String]): CipherMsg[String] =
-        CipherMsg(fromHex(value))
+      def hex(implicit h: ToHex[String]): Hex = Hex.parseHexString(value)
     }
 
     implicit object StringAsBase64 extends AsBase64[String] {
@@ -130,7 +151,7 @@ package object CryptoI {
       val value = text
     }
 
-    implicit object StringAsHex extends AsHex[String] {
+    implicit object StringToHex extends ToHex[String] {
       def encode(s: String): Hex = Hex(s.toCharArray.map(_.toByte))
 
       def decode(h: Hex): String = h.value.map(b => (b & 0xff).toChar).mkString
